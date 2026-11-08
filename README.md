@@ -1,13 +1,15 @@
 # TLAP
 
-**Tenokun's Light Audio Player: a very light music player for Windows.** It plays the songs in the folder you are looking at. No library, no playlists, no shuffle. Open a song, and the songs of its folder line up and play from that one, gaplessly.
+The Windows default is the worst, so I made this. The concept: this much is enough.
+
+Open a song, and TLAP plays the rest of its folder in order, without gaps. It keeps no library and no playlists.
 
 ## Download
 
 Get either one from GitHub Releases:
 
-- **Installer** (`TLAPSetup-<version>.exe`): per-user, no administrator rights needed.
-- **Portable** (`TLAP-<version>-portable.zip`): unzip anywhere and run `TLAP\TLAP.exe`. Settings are saved in `TLAP.ini` next to the exe. Keep the `visualizers` folder next to it.
+- Installer (`TLAPSetup-<version>.exe`): per-user, no administrator rights needed.
+- Portable (`TLAP-<version>-portable.zip`): unzip anywhere and run `TLAP\TLAP.exe`. Settings are saved in `TLAP.ini` next to the exe. Keep the `visualizers` folder next to it.
 
 TLAP is not code-signed, so Windows SmartScreen may warn you. Click "More info" > "Run anyway".
 
@@ -16,7 +18,7 @@ TLAP is not code-signed, so Windows SmartScreen may warn you. Click "More info" 
 | Input | Action |
 |---|---|
 | Space | Play / pause |
-| Left / Right | Previous / next song (Left within 3 s of the start goes back one song; later it restarts the song) |
+| Left / Right | Previous / next song (after 3 s, Left restarts the song) |
 | Shift+Left / Right | Seek -5 s / +5 s |
 | Up / Down | Volume +5% / -5% |
 | M | Mute |
@@ -37,12 +39,12 @@ You can also drop a song or a folder on the window, or start `TLAP.exe <file or 
 
 ## Features
 
-- **Song list** with selectable columns (Title, Artist, Album, Genre, Length, Format, Bitrate, Size, ...). Click a header to sort; the play order follows the sort.
-- **Left column**: the cover on top and a small folder explorer below.
-- **Info panel**, **mini window** (with an optional visualizer under it), Always on Top.
-- **10-band equalizer** with presets and an automatic preamp.
-- **Visualizer** drawn by an HLSL pixel shader on a pixel-art canvas (integer scaling, no smoothing). Put your own `.hlsl` in `visualizers\`; saving the file reloads it within a second. See `visualizers\README.txt`.
-- **Settings (Ctrl+,)**: language (English / 日本語 / 简体中文 / 繁體中文), mini-window visualizer, open the last folder on startup, a fixed startup folder.
+- Choose the columns of the song list (Title, Artist, Album, Genre, Length, Format, Bitrate, Size, ...). Click a header to sort; the play order follows the sort.
+- The left column shows the cover, with a small folder explorer below it.
+- Info panel, mini window (optionally with a visualizer under it), always on top.
+- 10-band equalizer with presets and an automatic preamp.
+- Visualizers are HLSL pixel shaders drawn at integer scale with no smoothing. Put your own `.hlsl` in `visualizers\`; saving it reloads it within a second. See `visualizers\README.txt`.
+- Settings (Ctrl+,): language (English / 日本語 / 简体中文 / 繁體中文), mini-window visualizer, open the last folder on startup, a fixed startup folder.
 
 Volume, mute, repeat, EQ, visualizer, columns and window positions are saved automatically.
 
