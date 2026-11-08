@@ -1,0 +1,10 @@
+# Local only (not published)
+SPEC.md
+build/
+dist/
+Demo/
+*.ini
+shots/
+testdata/
+third_party/_dl/
+tools/bin/

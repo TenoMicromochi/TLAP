@@ -1,0 +1,17 @@
+TLAP third_party sources (downloaded 2026-11-07, approved by Kaname)
+
+stb_vorbis 1.22
+  https://raw.githubusercontent.com/nothings/stb/master/stb_vorbis.c
+  SHA-256 4c7cb2ff1f7011e9d67950446b7eb9ca044f2e464d76bfbb0b84dd2e23e65636
+
+libogg 1.3.6
+  https://downloads.xiph.org/releases/ogg/libogg-1.3.6.tar.gz
+  SHA-256 83e6704730683d004d20e21b8f7f55dcb3383cdf84c0daedf30bde175f774638 (matches official SHA256SUMS)
+
+opus 1.6.1
+  https://downloads.xiph.org/releases/opus/opus-1.6.1.tar.gz
+  SHA-256 6ffcb593207be92584df15b32466ed64bbec99109f007c82205f0194572411a1
+
+opusfile 0.12
+  https://downloads.xiph.org/releases/opus/opusfile-0.12.tar.gz
+  SHA-256 118d8601c12dd6a44f52423e68ca9083cc9f2bfe72da7a8c1acb22a80ae3550b
