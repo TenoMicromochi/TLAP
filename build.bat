@@ -25,7 +25,7 @@ if defined ICONS (
 )
 rc /nologo /fo build\TLAP.res res\TLAP.rc || exit /b 1
 cl /nologo /std:c++17 /EHsc /MT /O1 /W3 /utf-8 /DUNICODE /D_UNICODE %TRACE% /Ithird_party\tlap_cfg /Ithird_party\opusfile-0.12\include /Ithird_party\libogg-1.3.6\include /Ithird_party\opus-1.6.1\include /Fo:build\ /Fe:build\TLAP.exe ^
-  src\main.cpp src\ui.cpp src\audio.cpp src\resample.cpp src\tags.cpp src\eq.cpp src\vis.cpp src\decode.cpp src\folder.cpp src\explorer.cpp src\lang.cpp src\settings.cpp src\util.cpp src\zipfs.cpp build\TLAP.res build\tp\tlap_tp.lib ^
+  src\main.cpp src\ui.cpp src\audio.cpp src\resample.cpp src\tags.cpp src\eq.cpp src\vis.cpp src\decode.cpp src\folder.cpp src\explorer.cpp src\lang.cpp src\settings.cpp src\util.cpp src\zipfs.cpp src\colfit.cpp build\TLAP.res build\tp\tlap_tp.lib ^
   /link /SUBSYSTEM:WINDOWS /OPT:REF /OPT:ICF || exit /b 1
 if exist visualizers xcopy /y /i /q visualizers build\visualizers >nul
 echo.

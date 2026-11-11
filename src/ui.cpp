@@ -1,4 +1,5 @@
 #include "ui.h"
+#include "colfit.h"
 #include "lang.h"
 #include "settings.h"
 #include "vis.h"
@@ -363,20 +364,29 @@ static int g_hscroll = 0;
 void SetListModel(const std::vector<Row>* rows, const ColState* cols) { g_rowsP = rows; g_colsP = cols; }
 void SetHScroll(int x) { g_hscroll = std::max(0, x); }
 int HScroll() { return g_hscroll; }
-static int TotalW() { int t = 0; if (g_colsP) for (int i = 0; i < LC_COUNT; i++) if (g_colsP->on[i]) t += g_colsP->w[i]; return t; }
-struct ListG { RECT v, body; int rows, availW, total; bool vbar, hbar; };
+static bool g_ovOn = false; static int g_ovW[LC_COUNT] = {};   // 境目のドラッグ中の表示の幅（収まるときだけ）
+void SetColOverride(const int* w) { g_ovOn = w != nullptr; if (w) for (int i = 0; i < LC_COUNT; i++) g_ovW[i] = w[i]; }
+// 表示の幅（第8段）：一覧に使える幅 avail にいつも収める。決め方は colfit
+static ColFitResult FitCols(int avail) {
+    ColFitResult r; if (!g_colsP) return r;
+    r = ColFit(*g_colsP, avail);
+    if (g_ovOn && !r.overflow) for (int i = 0; i < LC_COUNT; i++) r.w[i] = g_colsP->on[i] ? g_ovW[i] : 0;
+    return r;
+}
+struct ListG { RECT v, body; int rows, availW, total; bool vbar, hbar; ColFitResult fit; };
 static ListG Geom() {
-    ListG g; g.v = Calc(g_cw, g_ch).view; g.total = TotalW();
+    ListG g; g.v = Calc(g_cw, g_ch).view;
     int count = g_rowsP ? (int)g_rowsP->size() : 0;
     int vw = (int)(g.v.right - g.v.left), bodyH0 = (int)(g.v.bottom - g.v.top) - kHeadH;
     bool vbar = false, hbar = false; int rows = 1;
     for (int it = 0; it < 3; it++) {
         int avail = vw - (vbar ? kSbW : 0);
-        hbar = g.total > avail;
+        hbar = FitCols(avail).overflow;
         rows = std::max(1, (bodyH0 - (hbar ? kSbW : 0)) / kRowH);
         vbar = count > rows;
     }
-    g.vbar = vbar; g.availW = vw - (vbar ? kSbW : 0); g.hbar = g.total > g.availW; g.rows = rows;
+    g.vbar = vbar; g.availW = vw - (vbar ? kSbW : 0); g.fit = FitCols(g.availW); g.hbar = g.fit.overflow; g.rows = rows;
+    g.total = 0; for (int i = 0; i < LC_COUNT; i++) g.total += g.fit.w[i];
     g.body = RECT{ g.v.left, g.v.top + kHeadH, g.v.right, g.v.bottom - (g.hbar ? kSbW : 0) };
     return g;
 }
@@ -386,16 +396,25 @@ int MaxScroll(int count) { return std::max(0, count - VisibleRows()); }
 static bool NeedBar(int count) { return count > VisibleRows(); }
 static RECT BarRect() { ListG g = Geom(); return RECT{ g.v.right - kSbW, g.body.top, g.v.right, g.body.bottom }; }
 int MaxHScroll() { ListG g = Geom(); return std::max(0, g.total - g.availW); }
-int ColLeft(int c) { ListG g = Geom(); int x = (int)g.v.left - g_hscroll; if (g_colsP) for (int i = 0; i < c && i < LC_COUNT; i++) if (g_colsP->on[i]) x += g_colsP->w[i]; return x; }
+static int EffScroll(const ListG& g) { return std::min(g_hscroll, std::max(0, g.total - g.availW)); }
+static int ColLeftG(const ListG& g, int c) { int x = (int)g.v.left - EffScroll(g); for (int i = 0; i < c && i < LC_COUNT; i++) x += g.fit.w[i]; return x; }
+int ColLeft(int c) { return ColLeftG(Geom(), c); }
+bool ColDisplayW(int* w) { ListG g = Geom(); for (int i = 0; i < LC_COUNT; i++) w[i] = g.fit.w[i]; return g.fit.overflow; }
+int ColNext(int c) { if (!g_colsP) return -1; for (int i = c + 1; i < LC_COUNT; i++) if (g_colsP->on[i]) return i; return -1; }
 bool HitHeader(int x, int y) { ListG g = Geom(); return x >= g.v.left && x < g.v.left + g.availW && y >= g.v.top && y < g.v.top + kHeadH; }
 int HitHeaderCol(int x, int y) {
     if (!g_colsP || !HitHeader(x, y)) return -1;
-    for (int i = 0; i < LC_COUNT; i++) if (g_colsP->on[i]) { int l = ColLeft(i); if (x >= l && x < l + g_colsP->w[i]) return i; }
+    ListG g = Geom();
+    for (int i = 0; i < LC_COUNT; i++) if (g_colsP->on[i]) { int l = ColLeftG(g, i); if (x >= l && x < l + g.fit.w[i]) return i; }
     return -1;
 }
 int HitColEdge(int x, int y) {
     if (!g_colsP || !HitHeader(x, y)) return -1;
-    for (int i = 0; i < LC_COUNT; i++) if (g_colsP->on[i]) { int e = ColLeft(i) + g_colsP->w[i]; if (std::abs(x - e) <= 3) return i; }
+    ListG g = Geom();   // 収まるとき：一番右の列以外。はみ出すとき：数字の列だけ
+    for (int i = 0; i < LC_COUNT; i++) if (g_colsP->on[i]) {
+        if (g.fit.overflow ? !ColIsFixed(i) : ColNext(i) < 0) continue;
+        int e = ColLeftG(g, i) + g.fit.w[i]; if (std::abs(x - e) <= 3) return i;
+    }
     return -1;
 }
 static RECT HBarRect() { ListG g = Geom(); return RECT{ g.v.left, g.body.bottom, g.v.left + g.availW, g.v.bottom }; }
@@ -815,10 +834,10 @@ void Paint(HDC dc, int cw, int ch, const UiState& st) {
         int saved = SaveDC(dc);
         IntersectClipRect(dc, v.left, v.top, right, G.body.bottom);   // 横スクロールではみ出した列は見えない
         // 見出し（クリックで並べ替え。並べ替えの列には ▲ / ▼）
-        int endX = v.left - g_hscroll;
+        int endX = v.left - EffScroll(G);
         if (cs) for (int c = 0; c < LC_COUNT; c++) {
             if (!cs->on[c]) continue;
-            int x0 = ColLeft(c), x1 = x0 + cs->w[c]; endX = x1;
+            int x0 = ColLeftG(G, c), x1 = x0 + G.fit.w[c]; endX = x1;
             Fill(dc, x0, v.top, x1 - x0, kHeadH, FACE);
             Ring(dc, x0, v.top, x1 - x0, kHeadH, HI, SH);
             bool arrow = cs->sortCol == c;
@@ -843,7 +862,7 @@ void Paint(HDC dc, int cw, int ch, const UiState& st) {
             COLORREF c = rw.bad ? (sel ? RGB(0xc0, 0xc0, 0xc0) : GRAYTXT) : (sel ? RGB(255, 255, 255) : TXT);
             if (cs) for (int col = 0; col < LC_COUNT; col++) {
                 if (!cs->on[col]) continue;
-                int x0 = ColLeft(col), x1 = x0 + cs->w[col];
+                int x0 = ColLeftG(G, col), x1 = x0 + G.fit.w[col];
                 if (x1 <= v.left || x0 >= right) continue;
                 bool rightAl = ColIsNumeric(col);
                 RECT tb = { x0 + (rightAl ? 4 : (col == firstCol ? 11 : 4)), y, x1 - (rightAl ? 6 : 4), y + kRowH };
@@ -852,7 +871,7 @@ void Paint(HDC dc, int cw, int ch, const UiState& st) {
             }
             if (i == st.cur && firstCol >= 0) {   // 再生中の印（▶）
                 COLORREF mc = sel ? RGB(255, 255, 255) : (rw.bad ? GRAYTXT : TXT);
-                int mx = ColLeft(firstCol) + 3;
+                int mx = ColLeftG(G, firstCol) + 3;
                 for (int q = 0; q < 5; q++) Fill(dc, mx + q, y + 3 + q, 1, 9 - 2 * q, mc);
             }
         }

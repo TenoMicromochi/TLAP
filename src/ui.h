@@ -20,6 +20,8 @@ struct ColState {
     }
 };
 inline bool ColIsNumeric(int c) { return c == LC_NO || c == LC_TRACK || c == LC_YEAR || c == LC_LEN || c == LC_BITRATE || c == LC_RATE || c == LC_SIZE; }
+// 幅を固定する列（第8段）：数字の列に、中身の長さが決まっている Format と Modified を足したもの。ほかの文字の列が伸び縮みする
+inline bool ColIsFixed(int c) { return ColIsNumeric(c) || c == LC_FORMAT || c == LC_MODIFIED; }
 inline int ColMinW(int c) { return c == LC_TITLE ? 80 : 24; }
 
 // 一覧の1行
@@ -111,6 +113,9 @@ void SetListModel(const std::vector<Row>* rows, const ColState* cols);   // 一�
 void SetHScroll(int x);
 int HScroll();
 const wchar_t* ColName(int c);                      // 見出しの文字（今の言語）
+bool ColDisplayW(int* w);                           // 今の表示の幅（LC_COUNT 個、出していない列は 0）。はみ出すなら真（第8段）
+int ColNext(int c);                                 // c の右隣の出している列（無ければ -1）
+void SetColOverride(const int* w);                  // 境目のドラッグ中だけ、収まるときの表示の幅を指定（nullptr で解除）
 int ColLeft(int c);                                 // 列 c の左端 x（論理px、横スクロール込み）
 bool HitHeader(int x, int y);                       // 見出しの帯の上
 int HitHeaderCol(int x, int y);                     // 見出しの列（列の上でなければ -1）

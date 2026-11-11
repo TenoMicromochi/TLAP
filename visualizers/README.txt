@@ -2,8 +2,8 @@ TLAP visualizers
 ================
 
 TLAP draws its spectrum / visualizer with an HLSL pixel shader (the same idea as Shadertoy).
-Put a .hlsl file in this folder (next to TLAP.exe) and press V in TLAP to switch to it.
-V cycles through the shaders in file-name order, then "None" (the pane disappears), then back to the first one.
+Put a .hlsl file in this folder (next to TLAP.exe), then right-click the visualizer button in TLAP and pick it
+(choose Reload first if TLAP was already running). Left-click the button or press V to show / hide the visualizer.
 The selected shader is remembered.
 
 A shader can only compute colors from numbers TLAP gives it. It cannot read files or touch the network.

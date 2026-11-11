@@ -1,6 +1,7 @@
 #include "common.h"
 #include "version.h"
 #include "ui.h"
+#include "colfit.h"
 #include "audio.h"
 #include "folder.h"
 #include "settings.h"
@@ -79,6 +80,7 @@ static std::wstring g_defFolder;
 static bool g_openLast = true;        // 起動時に前回の場所を開く（Settings）
 static std::wstring g_visLast;        // 最後に使ったシェーダー（V・ボタンでオンに戻すとき）
 static ColState g_cols;               // 曲の一覧の列・幅・並べ替え
+static ColFitResult g_dragStart, g_dragCur; static int g_dragN = -1;   // 収まるとき：ドラッグ開始時と今の表示の幅 / 右隣の列（-1 = はみ出しの中のドラッグ。第8段）
 static int g_colDrag = -1, g_colWGrab = 0;   // 列の幅のドラッグ（その列 / 境目からの掴み位置）
 static bool g_hscrollDrag = false; static int g_hGrab = 0;
 static bool g_sortDirty = false;      // タグが読めて値が埋まったので、並びを直す必要がある
@@ -1218,7 +1220,13 @@ static void OnLButtonDown(LPARAM l) {
     }
     {   // 曲の一覧の見出し：列の境目のドラッグで幅、クリックで並べ替え（もう一度で降順）。下の横スクロールバー
         int ce = ui::HitColEdge(x, y);
-        if (ce >= 0) { g_colDrag = ce; g_colWGrab = x - (ui::ColLeft(ce) + g_cols.w[ce]); SetCapture(g_hwnd); return; }
+        if (ce >= 0) {
+            g_colDrag = ce;
+            bool ovf = ui::ColDisplayW(g_dragStart.w); g_dragStart.overflow = ovf;
+            g_dragN = ovf ? -1 : ui::ColNext(ce); g_dragCur = g_dragStart;
+            g_colWGrab = x - (ui::ColLeft(ce) + g_dragStart.w[ce]);
+            SetCapture(g_hwnd); return;
+        }
         int hc = ui::HitHeaderCol(x, y);
         if (hc >= 0) {
             if (g_cols.sortCol == hc) g_cols.desc = !g_cols.desc; else { g_cols.sortCol = hc; g_cols.desc = false; }
@@ -1535,9 +1543,14 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         }
         if (g_expScrollDrag) { ExpScrollTo(ui::ExpScrollFromThumbTop(y - g_expThumbGrab, (int)g_expRows.size())); return 0; }
         if (g_colDrag >= 0) {   // 列の幅（最小 24、Title は 80）
-            int c = g_colDrag, nw = x - g_colWGrab - ui::ColLeft(c);
-            nw = std::max(ColMinW(c), std::min(nw, 2000));
-            if (nw != g_cols.w[c]) { g_cols.w[c] = nw; ClampHScroll(); InvalidateChrome(); }
+            int c = g_colDrag, nw = x - g_colWGrab - ui::ColLeft(c);   // 列 c の左端は、ドラッグ中は動かない
+            if (g_dragN >= 0) {   // 収まるとき：右隣の列と幅をやり取りする
+                g_dragCur = ColFitDrag(g_dragStart, c, g_dragN, nw);
+                ui::SetColOverride(g_dragCur.w); InvalidateChrome();
+            } else {              // はみ出すとき：その列の幅だけ変える（数字の列）
+                nw = std::max(ColMinW(c), std::min(nw, 2000));
+                if (nw != g_cols.w[c]) { g_cols.w[c] = nw; ClampHScroll(); InvalidateChrome(); }
+            }
             return 0;
         }
         if (g_hscrollDrag) { ui::SetHScroll(ui::HScrollFromThumbLeft(x - g_hGrab)); InvalidateChrome(); return 0; }
@@ -1583,7 +1596,10 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         if (g_infoSplitDrag) { g_infoSplitDrag = false; ReleaseCapture(); return 0; }
         if (g_colSplitDrag) { g_colSplitDrag = false; ReleaseCapture(); return 0; }
         if (g_expScrollDrag) { g_expScrollDrag = false; ReleaseCapture(); return 0; }
-        if (g_colDrag >= 0) { g_colDrag = -1; ReleaseCapture(); DoLayout(); return 0; }
+        if (g_colDrag >= 0) {
+            if (g_dragN >= 0) ColFitCommit(g_cols, g_dragCur);   // 今見えている幅を覚え直す
+            ui::SetColOverride(nullptr); g_colDrag = -1; g_dragN = -1; ReleaseCapture(); ClampHScroll(); DoLayout(); InvalidateChrome(); return 0;
+        }
         if (g_hscrollDrag) { g_hscrollDrag = false; ReleaseCapture(); return 0; }
         if (g_splitDrag) { g_splitDrag = false; ReleaseCapture(); return 0; }
         if (g_volDrag) { ApplyVolumeSlider(Lp(l).x); g_volDrag = false; ReleaseCapture(); return 0; }
@@ -1596,7 +1612,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT m, WPARAM w, LPARAM l) {
         return 0;
     case WM_CAPTURECHANGED:
         g_ui.miniPress = -1;
-        g_splitDrag = false; g_infoSplitDrag = false; g_colSplitDrag = false; g_volDrag = false; g_scrollDrag = false; g_expScrollDrag = false; g_colDrag = -1; g_hscrollDrag = false;
+        g_splitDrag = false; g_infoSplitDrag = false; g_colSplitDrag = false; g_volDrag = false; g_scrollDrag = false; g_expScrollDrag = false; if (g_colDrag >= 0) { ui::SetColOverride(nullptr); g_dragN = -1; } g_colDrag = -1; g_hscrollDrag = false;
         if (g_ui.pressTool >= 0) { g_ui.pressTool = -1; InvalidateChrome(); }
         return 0;
     case WM_SYSCOMMAND:

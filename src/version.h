@@ -3,8 +3,8 @@
 #pragma once
 #define TLAP_VER_MAJOR 1
 #define TLAP_VER_MINOR 0
-#define TLAP_VER_PATCH 0
-#define TLAP_VER_STR "1.0.0"
+#define TLAP_VER_PATCH 1
+#define TLAP_VER_STR "1.0.1"
 
 #ifndef RC_INVOKED
 #define TLAP_WIDEN_(x) L##x
